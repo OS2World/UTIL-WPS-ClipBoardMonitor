@@ -1,0 +1,155 @@
+/* Clipboard Monitor */
+
+Audible = 1
+
+/* do not modify code from here */
+if scrlr.user='' then do
+	call RxFuncAdd 'VRLoadFuncs', 'VROBJ', 'VRLoadFuncs'
+	call VRLoadFuncs
+	XWPPath=strip(SysIni('USER','XWorkplace','XFolderPath'),'T','0'x)
+	scrlr.user=copies(' ',50)||XWPPath
+end
+XWPPath=substr(scrlr.user,51,)
+
+scrlr.text = ''
+newtooltip = VRMethod( "Application", "GetClipboard" ) 
+
+if left(newtooltip,50)<>left(scrlr.user,50) then 
+	if Audible then do
+		RunStr="call '"XWPPath"\bin\PlaySnd.CMD' 591"
+		interpret RunStr
+	end
+
+scrlr.user = left(newtooltip, 50)||XWPPath
+scrlr.tooltip =  newtooltip
+
+if scrlr.tooltip = '' then do
+	scrlr.tooltip = 'empty or no text'
+	bmp='E'
+end
+else bmp='T'
+scrlr.bitmap = XWPPath||'\Icons\clip'bmp'.bmp'
+
+/* Double Click Script */
+
+if VRMethod("Application", "GetClipboard")='' then do
+	call beep 880,40
+	ok=SysSetObjectData("<WP_CLIPV>","OPEN=DEFAULT")
+end
+else do
+	_VREVersion=SubWord(VRVersion("VRObj"),1,1)
+	if(_VREVersion < 2.14)then do
+		call VRMessage "","VROBJ version 2.14 required to run.","Error!"
+		return 32000
+	end
+
+	signal on SYNTAX name _VRESyntax
+	signal _VREMain
+
+_VRESyntax:
+	parse source . . _VRESourceSpec
+	call VRMessage "","Syntax error in" _VRESourceSpec "line" SIGL":" ErrorText(rc),"Error!"
+	call VRFini
+	exit 32000
+
+_VREMain:
+
+Main: 
+	call VROptions 'ImplicitNames'
+	call VROptions 'NoEchoQuit'
+
+	InitArgs.0=4
+	do I=1 to 4
+		InitArgs.I=arg(i) /* VX-REXX compatibility */
+	end
+
+	call VRInit /* Load the windows */
+	_VREPrimaryWindowPath=SysSearchPath('PATH','ClipEdit.VRW')
+	_VREPrimaryWindow=VRLoad("",_VREPrimaryWindowPath)
+
+	if(_VREPrimaryWindow == "")then do
+		call VRMessage "","Cannot load window:" VRError(),"Error!"
+		_VREReturnValue=32000
+		signal _VRELeaveMain
+	end
+
+	/* Process events */
+	call Init
+	signal on halt
+	do while(\ VRGet(_VREPrimaryWindow,"Shutdown"))
+		_VREEvent=VREvent()
+		interpret _VREEvent
+	end
+_VREHalt:
+	_VREReturnValue=Fini()
+	call VRDestroy _VREPrimaryWindow
+_VRELeaveMain:
+	call VRFini
+exit _VREReturnValue
+
+VRLoadSecondary:
+	__vrlsWait=abbrev('WAIT',translate(arg(2)),1)
+	if __vrlsWait then call VRFlush
+	__vrlsHWnd=VRLoad(VRWindow(),VRWindowPath(),arg(1))
+	if __vrlsHWnd='' then signal __vrlsDone
+	if __vrlsWait \= 1 then signal __vrlsDone
+	call VRSet __vrlsHWnd,'WindowMode','Modal' 
+	__vrlsTmp=__vrlsWindows.0
+	if(DataType(__vrlsTmp) \= 'NUM') then __vrlsTmp=1
+		else __vrlsTmp=__vrlsTmp + 1
+	
+	__vrlsWindows.__vrlsTmp=VRWindow(__vrlsHWnd)
+	__vrlsWindows.0=__vrlsTmp
+	do while(VRIsValidObject(VRWindow())=1)
+		__vrlsEvent=VREvent()
+		interpret __vrlsEvent
+	end
+	__vrlsTmp=__vrlsWindows.0
+	__vrlsWindows.0=__vrlsTmp - 1
+	call VRWindow __vrlsWindows.__vrlsTmp 
+	__vrlsHWnd=''
+__vrlsDone:
+return __vrlsHWnd
+
+Fini:
+	ok=VRSet(VRWindow(),"Visible",0)
+return 0
+
+Halt:
+	signal _VREHalt
+return
+
+Init:
+	window=VRWindow()
+	call VRMethod window,"CenterWindow"
+	call VRSet window,"Visible",1
+	call VRMethod window,"Activate"
+	drop window
+return
+
+PB_Cancel_Click: 
+	call Quit
+return
+
+PB_Clear_Click: 
+	ok=VRMethod("Application","PutClipboard","")
+	call Quit
+return
+
+PB_OK_Click: 
+	ok=VRMethod("Application","PutClipboard",VRget("MLE_Clip","Value"))
+	call Quit
+return
+
+Quit:
+	ok=VRSet(VRWindow(),"Shutdown",1)
+return
+
+Window1_Close:
+	call Quit
+return
+
+Window1_Create: 
+	ok=VRset("MLE_Clip","Value",VRMethod("Application","GetClipboard"))
+return
+end

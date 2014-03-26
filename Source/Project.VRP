@@ -1,0 +1,12 @@
+VX-REXX OS/2 V2.14 Build B3
+VRX: Window1.VRX
+MacroPath: VRM:E:\DEV\REXX\VXREXX\Projects\ClipWidget
+EXEPath: 
+RunParameters: 
+RunDirectory: 
+VRXWindow: __VREMainWindow,1,512,2349,994,8000
+VRXWindow: __VREFileListWindow,1,1731,10419,2665,3358
+VRXWindow: __VRESectionListWindow,1,7137,10298,2650,3342
+VRXWindow: __VREToolsWindow,1,527,422,4999,1694
+UserFile: 1
+UserWindow: Window1,1
